@@ -11,9 +11,11 @@ import multiprocessing
 from collections import defaultdict
 import operator
 import numpy as np
+from ftractor import ft
 
 objects = []
 
+two_nouns_clause=0
 artcount = 0
 sentcount = 0
 hpsent = 0
@@ -38,7 +40,7 @@ def str2clauses(t):
 def ftraktor(filename):
     #for every HP+ sentence in the file one HP-
 
-    global sentcount, hpsent, hpclause, categories, artcount, nouncount, objects
+    global sentcount, hpsent, hpclause, categories, artcount, nouncount, objects, two_nouns_clause
 
     artcount += 1
     with open(filename, 'r', encoding='utf8') as f:
@@ -56,10 +58,13 @@ def ftraktor(filename):
             except KeyError:
                 pass
 
+            text = sent["text"]
+            t = Text(text).tag_clauses()
+
             hpstart = min(sent["HP"]["start"])
             hpend = max(sent["HP"]["end"])
 
-            words = sent["words"]
+            words = t["words"]
 
             for i in range(len(words)):
                 if hpstart == words[i]["start"]:
@@ -67,7 +72,7 @@ def ftraktor(filename):
                 if hpend == words[i]["end"]:
                     locy = i
 
-            for i in range(len(s)):
+            for i in range(len(words)):
                 words[i]["locx"] = i - locx
                 words[i]["locy"] = i - locy
 
@@ -75,33 +80,51 @@ def ftraktor(filename):
             #Feature 2 locx +1 pos == Verb binaarne
             #Feature 3 locx +2 pos == S binaarne
 
-            text =sent["text"]
-            t = Text(text).tag_clauses()
 
-            for elem in t['clauses']:
+
+            for idx, elem in enumerate(t['clauses']):
                 start =elem["start"][0]
                 end = elem["end"][0]
 
-            if start <= hpstart and hpend <= end:
-                if "S" in Text(sent["HP"]["lemmas"][0]).postags:
-                    #print(s["data"]["title"])
-                    nouncount += 1
-                    #print(sent["HP"])
-                    #print("OSALAUSES, nimisõnad:", text[start:end])
+                if start <= hpstart and hpend <= end:
+
+                    #kas hüponüümia on nimisõnade vahel
 
 
-                hpclause += 1
 
-            else:
-                hpsent += 1
-                #print(sent["text"])
+                    #kas osalauses on kaks nimisõna
+
+                    clause = Text(t.text[start:end])
+
+                    nouns = [x for x in clause.analysis if x[0]['partofspeech'] == "S"]
+
+                    if len(nouns) == 2:
+#                        continue
+#                    else:
+                        two_nouns_clause += 1
+
+
+                        features = ft([x for x in words if x["clause_index"] == idx])
+
+
+                    if "S" in Text(sent["HP"]["lemmas"][0]).postags:
+                        #print(s["data"]["title"])
+                        nouncount += 1
+                        #print(sent["HP"])
+                        #print("OSALAUSES, nimisõnad:", text[start:end])
+
+                    hpclause += 1
+
+                else:
+                    hpsent += 1
+                    #print(sent["text"])
 
     return sentcount, hpsent
 
 if __name__ == '__main__':
 
     #with multiprocessing.Pool(4) as pool: # pool of 48 processes
-    walk = os.walk("new")
+    walk = os.walk("wikitext")
     fn_gen = itertools.chain.from_iterable((os.path.join(root, file)
                                                     for file in files)
                                                    for root, dirs, files in walk)
@@ -115,6 +138,7 @@ if __name__ == '__main__':
     print("HP LAUSEID", hpsent)
     print("HP CLAUSES", hpclause)
     print("NOUN CLAUSES", nouncount)
+    print("2 NOUN CLAUSES", two_nouns_clause)
     print("ENIM HP+ LAUSEID SISALDAVAD KATEGOORIAD")
 
     n = 0

@@ -166,7 +166,7 @@ def worker(filename):
 if __name__ == '__main__':
     start = time()
     with multiprocessing.Pool(8) as pool: # pool of 48 processes
-        walk = os.walk("/home/andresmt/Text1/wiki/wikidump/wikitext5")
+        walk = os.walk("wikitext")
         fn_gen = itertools.chain.from_iterable((os.path.join(root, file)
                                                     for file in files)
                                                    for root, dirs, files in walk)
